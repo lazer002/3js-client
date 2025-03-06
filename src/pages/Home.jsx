@@ -29,7 +29,7 @@ export default function Home() {
   const overlayRef = useRef(null);
   const buttonRef = useRef(null);
   const modalContentRef = useRef(null);
-  const API_BASE_URL = 'http://localhost:5000/api';
+  const API_BASE_URL = 'https://threejs-server-jywz.onrender.com/api';
   const [bills, setBills] = useState([]);
 
 
