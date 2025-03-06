@@ -5,9 +5,7 @@ import gsap from 'gsap';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { FaSearch, FaFilter, FaChevronDown, FaDownload, FaEllipsisV, FaSort, FaSortUp, FaSortDown } from 'react-icons/fa';
 
-// API base URL
 
 
 export default function Home() {
@@ -29,7 +27,7 @@ export default function Home() {
   const overlayRef = useRef(null);
   const buttonRef = useRef(null);
   const modalContentRef = useRef(null);
-  const API_BASE_URL = 'http://localhost:5000/api';
+  const API_BASE_URL = 'https://threejs-server-jywz.onrender.com/api';
   const [bills, setBills] = useState([]);
 
 
@@ -106,93 +104,61 @@ export default function Home() {
 
   const handleGenerateBill = async () => {
     if (!customer.name || !customer.mobile || products.length === 0) {
-      toast.error("Please fill all required fields and add at least one product.", {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-      });
+      toast.error("Please fill all required fields and add at least one product.");
       return;
     }
-
+  
     setIsLoading(true);
-
+  
     try {
-      const { subtotal, tax, grandTotal } = calculateTotals();
-
-      // Prepare bill data
+      console.log("Calculating totals...");
+      const { subtotal = 0, tax = 0, grandTotal = 0 } = calculateTotals() || {};
+      
       const billData = {
-        customerDetails: {
-          name: customer.name,
-          mobile: customer.mobile,
-          address: customer.address,
-          date: customer.date,
-        },
-        products: products.map(product => ({
-          name: product.name,
-          description: product.description,
-          quantity: product.quantity,
-          price: product.price,
-          total: product.total,
-        })),
-        summary: {
-          subtotal,
-          tax,
-          grandTotal,
-        },
+        customerDetails: { ...customer },
+        products: products.map(p => ({ ...p })),
+        summary: { subtotal, tax, grandTotal },
         createdAt: new Date(),
       };
-
-      // Save bill to the database
+  
+      console.log("Saving bill:", billData);
       const savedBill = await billService.createBill(billData);
-
-      // Show success message
+      console.log("Bill saved:", savedBill);
+  
       toast.success("Bill saved successfully!");
-
-      // Refresh bills list (if needed, you might fetch updated bills here)
       setBills(prevBills => [...prevBills, savedBill]);
-
-      // Generate PDF
+  
+      console.log("Generating PDF...");
       generatePDF(savedBill);
-
+  
     } catch (error) {
-      console.error("Error generating bill:", error);
+      console.error("Error in handleGenerateBill:", error);
       toast.error("Failed to save bill. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
-
+  
   const generatePDF = (billData) => {
     try {
       const doc = new jsPDF();
 
-      // Calculate totals from billData
       let subtotal, tax, grandTotal;
 
       if (billData.summary) {
-        // If billData is from saved bill
         ({ subtotal, tax, grandTotal } = billData.summary);
       } else {
-        // If generating new bill
         ({ subtotal, tax, grandTotal } = calculateTotals());
       }
 
-      // Add custom font color
       doc.setDrawColor(116, 112, 0);
       doc.setTextColor(116, 112, 0);
 
-      // Header
       doc.setFontSize(35);
       doc.text("INVOICE", doc.internal.pageSize.width / 2, 20, { align: 'center' });
       doc.setLineWidth(0.5);
       doc.line(20, 25, doc.internal.pageSize.width - 20, 25);
 
-      // Customer Details Section
       doc.setFontSize(12);
       doc.setFont(undefined, 'bold');
       doc.text("BILL TO", 20, 40);
@@ -203,13 +169,11 @@ export default function Home() {
       doc.text(`${customerDetails.mobile}`, 20, 55);
       doc.text(`${customerDetails.address}`, 20, 62);
 
-      // Date on the right
       doc.setFont(undefined, 'bold');
       doc.text("DATE", doc.internal.pageSize.width - 60, 40);
       doc.setFont(undefined, 'normal');
       doc.text(`${customerDetails.date}`, doc.internal.pageSize.width - 60, 48);
 
-      // Products Table
       const productsData = billData.products || products;
       doc.setFontSize(11);
       autoTable(doc, {
@@ -237,38 +201,30 @@ export default function Home() {
 
       const finalY = doc.lastAutoTable.finalY + 10;
 
-      // Summary section with right alignment
       const summaryX = doc.internal.pageSize.width - 80;
 
-      // Subtotal
       doc.setFontSize(11);
       doc.text("Subtotal:", summaryX, finalY);
       doc.text(`₹${subtotal.toFixed(2)}`, doc.internal.pageSize.width - 20, finalY, { align: 'right' });
 
-      // Tax
       doc.text("Tax (10%):", summaryX, finalY + 8);
       doc.text(`₹${tax.toFixed(2)}`, doc.internal.pageSize.width - 20, finalY + 8, { align: 'right' });
 
-      // Line before grand total
       doc.setLineWidth(0.3);
       doc.line(summaryX - 20, finalY + 12, doc.internal.pageSize.width - 20, finalY + 12);
 
-      // Grand Total
       doc.setFont(undefined, 'bold');
       doc.setFontSize(13);
       doc.text("Grand Total:", summaryX, finalY + 20);
       doc.text(`₹${grandTotal.toFixed(2)}`, doc.internal.pageSize.width - 20, finalY + 20, { align: 'right' });
 
-      // Footer
       doc.setFont(undefined, 'normal');
       doc.setFontSize(10);
       doc.setTextColor(128, 128, 128);
       doc.text("Thank you for your business!", doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 20, { align: 'center' });
 
-      // Create blob and open in new tab
-      const blob = doc.output('blob');
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+  
+      doc.save('invoice.pdf');
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast.error('Failed to generate PDF. Please try again.');
@@ -286,7 +242,6 @@ export default function Home() {
     if (!modal || !overlay || !content || !invoiceText || !formContent) return;
 
     if (isModalOpen) {
-      // Set initial states
       gsap.set(modal, {
         display: 'block',
         opacity: 0,
@@ -303,7 +258,6 @@ export default function Home() {
         x: 200
       });
 
-      // Create timeline for animations
       const tl = gsap.timeline();
 
       tl.to(overlay, {
@@ -328,7 +282,7 @@ export default function Home() {
           x: 0,
           duration: 0.3,
           ease: 'power3.out'
-        }, '<'); // '<' makes this animation start at the same time as the previous one
+        }, '<'); 
 
     } else {
       const tl = gsap.timeline({
@@ -385,7 +339,6 @@ export default function Home() {
   return (
     <div className="min-h-screen p-6 relative bg-[#4b4800]">
       <ToastContainer />
-      {/* Open Button */}
       <button
         ref={buttonRef}
         onClick={() => setIsModalOpen(true)}
@@ -396,7 +349,6 @@ export default function Home() {
         </svg>
       </button>
 
-      {/* Overlay */}
       <div
         ref={overlayRef}
         className={`fixed inset-0 bg-black bg-opacity-50 `}
@@ -404,7 +356,6 @@ export default function Home() {
         onClick={() => setIsModalOpen(false)}
       />
 
-      {/* Loading Overlay */}
       {isLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white p-4 rounded-lg shadow-lg">
@@ -414,14 +365,12 @@ export default function Home() {
         </div>
       )}
 
-      {/* Modal */}
       <div
         ref={modalRef}
         className={`fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] h-[90vh] bg-white rounded-lg shadow-2xl  z-50 overflow-hidden`}
         style={{ display: 'none' }}
       >
         <div ref={modalContentRef} className="h-full flex flex-col">
-          {/* Header with close button */}
           <div className="flex justify-end p-4 absolute right-0 top-0 z-10">
             <button
               onClick={() => setIsModalOpen(false)}
@@ -433,16 +382,13 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Main content with split layout */}
           <div className="flex h-full">
-            {/* Left side - Vertical text */}
             <div className="w-1/4 bg-[#747000] flex items-center justify-center relative">
               <div className="invoice-text absolute transform -rotate-90 text-white text-8xl font-bold tracking-widest">
                 INVOICE
               </div>
             </div>
 
-            {/* Right side - Form content */}
             <div className="w-3/4 flex flex-col form-content">
               <div className="flex-1 overflow-y-auto p-8">
                 <div className="max-w-3xl mx-auto">
@@ -547,7 +493,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Footer */}
               <div className="border-t p-6 bg-gray-50">
                 <div className="max-w-3xl mx-auto flex justify-end gap-4">
                   <button
@@ -571,81 +516,80 @@ export default function Home() {
 
 
 
-      <div className="flex h-screen bg-white rounded-3xl">
-        <div className="w-1/4 bg-[#747000] flex items-center justify-center relative rounded-3xl">
-          <div className="invoice-text drop-shadow-2xl absolute transform -rotate-90 text-white text-8xl font-bold tracking-widest">
-            INVOICE
-          </div>
-        </div>
+      <div className="flex h-[96vh] bg-white rounded-3xl overflow-hidden">
+  <div className="w-1/4 bg-[#747000] flex items-center justify-center relative rounded-3xl h-full">
+    <div className="invoice-text drop-shadow-2xl absolute transform -rotate-90 text-white text-6xl font-bold tracking-widest">
+      INVOICE
+    </div>
+  </div>
 
-        <div className="w-3/4 max-w-7xl mx-auto mt-16 space-y-6 ">
-          <h2 className="text-2xl font-semibold text-[#747000] text-center">Invoices</h2>
+  <div className="w-3/4 flex flex-col h-full overflow-hidden">
+    <h2 className="text-2xl font-semibold text-[#747000] text-center p-4">Invoices</h2>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {bills.map((bill, index) => (
-              <div
-                key={bill._id}
-                ref={(el) => (cardsRef.current[index] = el)}
-                className="bg-white rounded-xl  border border-l-4 shadow-2xl border-[#b5a400] p-5 relative transition-all transform hover:scale-105 hover:shadow-lg"
-              >
-                {/* Invoice Header */}
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold text-[#747000]">{bill.customerDetails.name}</h3>
-                  <div className="px-3 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700 shadow-lg">
-                    ${bill.summary.grandTotal.toFixed(2)}
-                  </div>
-                </div>
-
-                {/* Invoice Details */}
-                <div className="mt-3 space-y-2">
-                  <p className="text-sm text-gray-500">Invoice ID: {bill._id}</p>
-                  <p className="text-sm text-gray-500">Date: {new Date(bill.customerDetails.date).toLocaleDateString()}</p>
-                  <p className="text-lg font-bold text-[#b5a400]">${bill.summary.grandTotal.toFixed(2)}</p>
-                </div>
-
-                {/* Products List */}
-                <div className="mt-4 border-t border-gray-300 pt-3">
-                  <h4 className="text-sm font-semibold text-[#747000] mb-2">Products:</h4>
-                  <div className="space-y-2 ">
-                    {bill.products.map((product) => (
-                      <div key={product._id} className="flex justify-between items-center bg-gray-100 rounded-lg p-2 shadow-md">
-                        <span className="text-sm font-medium text-gray-800">{product.name}</span>
-                        <span className="text-sm text-gray-600">Qty: {product.quantity}</span>
-                        <span className="text-sm text-gray-600">${product.price.toFixed(2)}</span>
-                        <span className="text-sm font-semibold text-[#b5a400]">${product.total.toFixed(2)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="mt-4 flex justify-between items-center">
-                  <button className="text-[#747000] text-sm font-medium hover:text-[#b5a400] transition">
-                    View Details
-                  </button>
-
-                  <div className="relative group">
-                    <button className="text-gray-500 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100">
-                      <FaEllipsisV size={16} />
-                    </button>
-                    <div className="absolute right-0 mt-2 w-44 bg-white rounded-md shadow-lg hidden group-hover:block z-10 border border-[#b5a400]">
-                      <div className="py-1">
-                        <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#f6f4d2]">View Details</a>
-                        <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#f6f4d2]">Download PDF</a>
-                        <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-[#f6f4d2]">Mark as Paid</a>
-                      </div>
-                    </div>
-                  </div>
+    <div className="flex-1 overflow-y-auto p-4">
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {bills.map((bill, index) =>
+          bill ? (
+            <div
+              key={bill._id || index}
+              ref={(el) => (cardsRef.current[index] = el)}
+              className="bg-white rounded-xl border border-l-4 shadow-2xl border-[#b5a400] p-5 relative transition-all transform hover:scale-105 hover:shadow-lg"
+            >
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-[#747000]">
+                  {bill?.customerDetails?.name || "Unknown Customer"}
+                </h3>
+                <div className="px-3 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700 shadow-lg">
+                  ${bill?.summary?.grandTotal?.toFixed(2) || "0.00"}
                 </div>
               </div>
-            ))}
 
+              <div className="mt-3 space-y-2">
+                <p className="text-sm text-gray-500">Invoice ID: {bill._id || "N/A"}</p>
+                <p className="text-sm text-gray-500">
+                  Date: {bill?.customerDetails?.date
+                    ? new Date(bill.customerDetails.date).toLocaleDateString()
+                    : "N/A"}
+                </p>
+                <p className="text-lg font-bold text-[#b5a400]">
+                  ${bill?.summary?.grandTotal?.toFixed(2) || "0.00"}
+                </p>
+              </div>
 
+              <div className="mt-4 border-t border-gray-300 pt-3">
+                <h4 className="text-sm font-semibold text-[#747000] mb-2">Products:</h4>
+                <div className="space-y-2">
+                  {(bill?.products || []).map((product, pIndex) => (
+                    <div
+                      key={product?._id || pIndex}
+                      className="flex justify-between items-center bg-gray-100 rounded-lg p-2 shadow-md"
+                    >
+                      <span className="text-sm font-medium text-gray-800">
+                        {product?.name || "Unknown Product"}
+                      </span>
+                      <span className="text-sm text-gray-600">Qty: {product?.quantity || 0}</span>
+                      <span className="text-sm text-gray-600">${product?.price?.toFixed(2) || "0.00"}</span>
+                      <span className="text-sm font-semibold text-[#b5a400]">
+                        ${product?.total?.toFixed(2) || "0.00"}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-
-          </div>
-        </div>
+              <div className="mt-4 flex justify-between items-center">
+                <button className="text-[#747000] text-sm font-medium hover:text-[#b5a400] transition">
+                  View Details
+                </button>
+              </div>
+            </div>
+          ) : null
+        )}
       </div>
+    </div>
+  </div>
+</div>
+
 
     </div>
   );

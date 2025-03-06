@@ -6,7 +6,6 @@ import { authContext } from '../context/useContext.jsx';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment, useGLTF } from '@react-three/drei';
 import { FaGoogle, FaFacebook, FaEnvelope } from 'react-icons/fa';
-// Custom hook to track mouse position
 const useMousePosition = () => {
   const [mouse, setMouse] = useState({ x: 0, y: 0 });
   useEffect(() => {
@@ -23,11 +22,10 @@ const useMousePosition = () => {
   return mouse;
 };
 
-// Returns a random position in 3D space
 const getRandomPosition = () => [
-  (Math.random() - 0.5) * 10, // X axis (-5 to 5)
-  (Math.random() - 0.5) * 6,  // Y axis (-3 to 3)
-  (Math.random() - 0.5) * 10  // Z axis (-5 to 5)
+  (Math.random() - 0.5) * 10, 
+  (Math.random() - 0.5) * 6,  
+  (Math.random() - 0.5) * 10  
 ];
 
 function MovingObject({ glbUrl, color, type, metallic = true,scale=1 }) {
@@ -36,7 +34,7 @@ function MovingObject({ glbUrl, color, type, metallic = true,scale=1 }) {
   const mouse = useMousePosition();
   const [position] = useState(() => {
     const pos = getRandomPosition();
-    return [pos[0], pos[1], 0]; // Keep Z always 0
+    return [pos[0], pos[1], 0]; 
   });
 
   const velocity = useRef({
@@ -64,7 +62,7 @@ function MovingObject({ glbUrl, color, type, metallic = true,scale=1 }) {
       if (Math.abs(objPos.y) > 3) velocity.current.y *= -1;
     }
 
-    objPos.z = 0; // Keep Z fixed
+    objPos.z = 0; 
   });
 
   return (
@@ -90,7 +88,7 @@ function Signin() {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await axios.post('http://localhost:5000/api/data', user);
+      const response = await axios.post('https://threejs-server-jywz.onrender.com/api/data', user);
       localStorage.setItem('token', response.data.token);
       setAuth(true);
       toast.success('Login successful!');
@@ -106,10 +104,8 @@ function Signin() {
   return (
     <div className="relative w-full h-screen flex justify-center items-center">
       <ToastContainer />
-      {/* 3D Background */}
       <div className="absolute inset-0 w-full h-full"  style={{ backgroundImage: "url('/3d/229.jpg')", backgroundSize: "cover", backgroundPosition: "center" }}>
         <Canvas className="w-full h-full ">
-          {/* <Environment preset="warehouse" background /> */}
           <ambientLight intensity={0.5} />
           <directionalLight position={[5, 5, 5]} intensity={2} />
           <pointLight position={[2, 2, 2]} intensity={3} />
@@ -128,7 +124,6 @@ function Signin() {
         </Canvas>
       </div>
 
-      {/* Sign-In Form */}
       <div className="flex items-center justify-center min-h-screen">
         <div className="relative z-10 bg-white/20 backdrop-blur-lg p-10 rounded-lg shadow-lg w-96 border border-white/30">
           <h2 className="text-center text-3xl font-extrabold text-white mb-6">Sign In</h2>
