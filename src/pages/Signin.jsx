@@ -90,7 +90,7 @@ function Signin() {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await axios.post('http://localhost:5000/api/data', user);
+      const response = await axios.post('https://threejs-server-jywz.onrender.com/api/data', user);
       localStorage.setItem('token', response.data.token);
       setAuth(true);
       toast.success('Login successful!');
